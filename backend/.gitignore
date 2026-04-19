@@ -1,0 +1,65 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environment directories
+venv/
+env/
+.venv/
+ENV/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+eggs/
+.eggs/
+sdist/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Django local settings / DB / media
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Logs and runtime files
+*.log
+celerybeat-schedule
+
+# Test and coverage
+.pytest_cache/
+.cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Type/checker caches
+.mypy_cache/
+.pyre/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node modules (if present)
+node_modules/
+
+# Environment variable files
+.env
+.env.local
+.env.*.local
