@@ -1,29 +1,41 @@
-import { useEffect, useState } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import SidebarLayout from './components/SidebarLayout';
+
+// Pages
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Attendance from './pages/Attendance';
+import Students from './pages/Students';
 
 function App() {
-  const [students, setStudents] = useState([]);
-
-  useEffect(() => {
-    fetch("http://127.0.0.1:8000/students")
-      .then((res) => res.json())
-      .then((data) => setStudents(data))
-      .catch((err) => console.error(err));
-  }, []);
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Smart Attendance System</h1>
+    <Router>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-      <h2>Student List</h2>
+        {/* Protected Routes Wrapper */}
+        <Route 
+          path="/" 
+          element={
+            <ProtectedRoute>
+              <SidebarLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="students" element={<Students />} />
+        </Route>
 
-      <ul>
-        {students.map((student) => (
-          <li key={student.id}>
-            {student.name} - {student.roll_no}
-          </li>
-        ))}
-      </ul>
-    </div>
+        {/* Fallback route */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
   );
 }
 
