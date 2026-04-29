@@ -26,6 +26,15 @@ const Attendance = () => {
     };
   }, [stream]);
 
+  useEffect(() => {
+    if (!stream || !videoRef.current) return;
+    const video = videoRef.current;
+    video.srcObject = stream;
+    video.play().catch(() => {
+      // Browser autoplay restrictions can reject this promise; user interaction will still start playback.
+    });
+  }, [stream]);
+
   const startCamera = async () => {
     try {
       setStatus({ type: '', message: '' });
@@ -34,9 +43,6 @@ const Attendance = () => {
       });
       setStream(mediaStream);
       setIsCameraReady(false);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
     } catch (err) {
       console.error('Error accessing camera:', err);
       setStatus({ 
