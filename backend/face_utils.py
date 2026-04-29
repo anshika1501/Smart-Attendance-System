@@ -16,6 +16,25 @@ face_cascade = cv2.CascadeClassifier(
 )
 
 
+def _extract_single_face_roi_from_bgr(img):
+    if img is None:
+        return None, "Invalid image data"
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+
+    if len(faces) == 0:
+        return None, "No face detected"
+    if len(faces) > 1:
+        return None, "Multiple faces detected"
+
+    x, y, w, h = faces[0]
+    roi = gray[y:y + h, x:x + w]
+    roi = cv2.resize(roi, FACE_SIZE, interpolation=cv2.INTER_AREA)
+    roi = cv2.equalizeHist(roi)
+    return roi, None
+
+
 def get_embedding_from_base64(base64_string):
     """
     Returns a normalized grayscale face ROI for LBPH training/prediction.
@@ -44,20 +63,7 @@ def get_embedding_from_base64(base64_string):
         if img is None:
             return None, "Invalid image data"
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-
-        if len(faces) == 0:
-            return None, "No face detected"
-        if len(faces) > 1:
-            return None, "Multiple faces detected"
-
-        x, y, w, h = faces[0]
-        roi = gray[y:y + h, x:x + w]
-        roi = cv2.resize(roi, FACE_SIZE, interpolation=cv2.INTER_AREA)
-        roi = cv2.equalizeHist(roi)
-
-        return roi, None
+        return _extract_single_face_roi_from_bgr(img)
 
     except Exception as e:
         return None, str(e)
@@ -105,12 +111,13 @@ def retrain_lbph_model():
 
         for image_name in image_files:
             path = os.path.join(folder_path, image_name)
-            img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
+            img = cv2.imread(path, cv2.IMREAD_COLOR)
             if img is None:
                 continue
-            img = cv2.resize(img, FACE_SIZE, interpolation=cv2.INTER_AREA)
-            img = cv2.equalizeHist(img)
-            faces.append(img)
+            roi, err = _extract_single_face_roi_from_bgr(img)
+            if err:
+                continue
+            faces.append(roi)
             labels.append(label)
             added_for_student += 1
 

@@ -61,6 +61,11 @@ class StudentCreate(BaseModel):
     name: str
     roll_no: str
 
+
+class StudentUpdate(BaseModel):
+    name: str | None = None
+    roll_no: str | None = None
+
 class FaceRegistration(BaseModel):
     student_id: int
     image_base64: str
@@ -91,6 +96,29 @@ def get_students(db: Session = Depends(get_db)):
     students = db.query(models.Student).all()
     # We shouldn't send the large face embeddings to the frontend normally, but currently returning all columns
     return [{"id": s.id, "name": s.name, "roll_no": s.roll_no, "is_face_registered": s.face_embedding is not None} for s in students]
+
+
+# Update student API
+@app.put("/students/{student_id}")
+def update_student(student_id: int, student: StudentUpdate, db: Session = Depends(get_db)):
+    db_student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not db_student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    # Update fields if provided
+    if student.name is not None:
+        db_student.name = student.name
+    if student.roll_no is not None:
+        # ensure roll_no uniqueness
+        existing = db.query(models.Student).filter(models.Student.roll_no == student.roll_no, models.Student.id != student_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Roll number already exists")
+        db_student.roll_no = student.roll_no
+
+    db.commit()
+    db.refresh(db_student)
+
+    return {"message": "Student updated successfully", "student": {"id": db_student.id, "name": db_student.name, "roll_no": db_student.roll_no}}
 
 # Register Face API
 @app.post("/register-face")
@@ -149,11 +177,11 @@ def mark_attendance(req: MarkAttendanceRequest,
         )
 
     # LBPH returns distance-like confidence where lower is better.
-    match_threshold = 65.0
+    match_threshold = 110.0
     if confidence > match_threshold:
         raise HTTPException(
             status_code=401,
-            detail="Face not recognized"
+            detail=f"Face not recognized (confidence={confidence:.2f}, threshold={match_threshold:.2f})"
         )
 
     matched_student = db.query(models.Student).filter(

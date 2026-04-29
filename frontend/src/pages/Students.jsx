@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Users, Search, AlertCircle, ScanFace, X, Camera, CheckCircle } from 'lucide-react';
+import { Users, Search, AlertCircle, ScanFace, X, Camera, CheckCircle, Edit2 } from 'lucide-react';
 
 const Students = () => {
   const [students, setStudents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Registration Modal State
   const [registeringStudent, setRegisteringStudent] = useState(null);
   const [stream, setStream] = useState(null);
@@ -16,6 +16,13 @@ const Students = () => {
   const [isUploading, setIsUploading] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+  // Edit Modal State
+  const [editingStudent, setEditingStudent] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editRollNo, setEditRollNo] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({ type: '', message: '' });
 
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -28,10 +35,10 @@ const Students = () => {
       setIsLoading(false);
       // Fallback for demonstration if API isn't up
       if (err.message === 'Network Error') {
-         setStudents([
-            { id: 1, name: 'Anshika', roll_no: '101', is_face_registered: true },
-            { id: 2, name: 'John Doe', roll_no: '102', is_face_registered: false }
-         ]);
+        setStudents([
+          { id: 1, name: 'Anshika', roll_no: '101', is_face_registered: true },
+          { id: 2, name: 'John Doe', roll_no: '102', is_face_registered: false }
+        ]);
       }
     }
   };
@@ -44,11 +51,11 @@ const Students = () => {
   const openRegistrationModal = async (student) => {
     setRegisteringStudent(student);
     setUploadStatus({ type: '', message: '' });
-    
+
     // Start camera automatically when modal opens
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user' } 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user' }
       });
       setStream(mediaStream);
       setIsCameraReady(false);
@@ -67,6 +74,40 @@ const Students = () => {
     setRegisteringStudent(null);
   };
 
+  // Edit handlers
+  const closeEditModal = () => {
+    setEditingStudent(null);
+    setIsSaving(false);
+    setSaveStatus({ type: '', message: '' });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingStudent) return;
+    if (!editName?.trim() || !editRollNo?.trim()) {
+      setSaveStatus({ type: 'error', message: 'Name and roll number cannot be empty.' });
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveStatus({ type: '', message: '' });
+    try {
+      const resp = await api.put(`/students/${editingStudent.id}`, {
+        name: editName,
+        roll_no: editRollNo
+      });
+
+      const updated = resp.data.student ?? resp.data;
+
+      setStudents(students.map(s => s.id === editingStudent.id ? { ...s, name: updated.name, roll_no: updated.roll_no } : s));
+      setSaveStatus({ type: 'success', message: 'Student updated successfully' });
+      setTimeout(() => closeEditModal(), 1000);
+    } catch (err) {
+      setSaveStatus({ type: 'error', message: err.response?.data?.detail || 'Failed to update student.' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Bind stream to video ref whenever stream/modal changes state
   useEffect(() => {
     if (stream && videoRef.current) {
@@ -77,7 +118,7 @@ const Students = () => {
   const handleCaptureAndRegister = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    
+
     if (!video || !canvas) return;
     if (!video.videoWidth || !video.videoHeight) {
       setUploadStatus({ type: 'error', message: 'Camera is still initializing. Please wait and try again.' });
@@ -100,26 +141,26 @@ const Students = () => {
       });
 
       setUploadStatus({ type: 'success', message: 'Face registered successfully!' });
-      
+
       // Update local state to reflect change without full refetch immediately
       setStudents(students.map(s => s.id === registeringStudent.id ? { ...s, is_face_registered: true } : s));
-      
+
       setTimeout(() => {
         closeRegistrationModal();
       }, 2000);
 
     } catch (err) {
-      setUploadStatus({ 
-        type: 'error', 
-        message: err.response?.data?.detail || 'Failed to register face.' 
+      setUploadStatus({
+        type: 'error',
+        message: err.response?.data?.detail || 'Failed to register face.'
       });
     } finally {
       setIsUploading(false);
     }
   };
 
-  const filteredStudents = students.filter(student => 
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredStudents = students.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     student.roll_no.includes(searchTerm)
   );
 
@@ -172,7 +213,7 @@ const Students = () => {
                 <tr>
                   <td colSpan="5" className="py-12 text-center text-slate-400">
                     <div className="flex justify-center mb-2">
-                       <span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin block"></span>
+                      <span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin block"></span>
                     </div>
                     Loading students...
                   </td>
@@ -185,7 +226,7 @@ const Students = () => {
                 </tr>
               ) : (
                 filteredStudents.map((student, index) => (
-                  <tr 
+                  <tr
                     key={student.id || index}
                     className="border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors"
                   >
@@ -193,37 +234,46 @@ const Students = () => {
                     <td className="py-4 px-6 font-medium text-slate-200">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-blue-400">
-                           {student.name.charAt(0).toUpperCase()}
+                          {student.name.charAt(0).toUpperCase()}
                         </div>
                         {student.name}
                       </div>
                     </td>
                     <td className="py-4 px-6 font-mono text-slate-300 bg-slate-900/30 rounded inline-block m-2 mt-3">{student.roll_no}</td>
-                    
+
                     <td className="py-4 px-6 text-center">
-                       {student.is_face_registered ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
-                             <CheckCircle size={14} /> Registered
-                          </span>
-                       ) : (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
-                             Unregistered
-                          </span>
-                       )}
+                      {student.is_face_registered ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                          <CheckCircle size={14} /> Registered
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                          Unregistered
+                        </span>
+                      )}
                     </td>
 
                     <td className="py-4 px-6 text-right">
-                       <button
-                         onClick={() => openRegistrationModal(student)}
-                         className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                           student.is_face_registered 
-                           ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                           : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20'
-                         }`}
-                       >
-                         <ScanFace size={16} />
-                         {student.is_face_registered ? 'Update Face' : 'Register Face'}
-                       </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          onClick={() => { setEditingStudent(student); setEditName(student.name); setEditRollNo(student.roll_no); setSaveStatus({ type: '', message: '' }); }}
+                          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors"
+                        >
+                          <Edit2 size={14} />
+                          Edit
+                        </button>
+
+                        <button
+                          onClick={() => openRegistrationModal(student)}
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${student.is_face_registered
+                              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                              : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-500/20'
+                            }`}
+                        >
+                          <ScanFace size={16} />
+                          {student.is_face_registered ? 'Update Face' : 'Register Face'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -236,71 +286,140 @@ const Students = () => {
       {/* Face Registration Modal */}
       {registeringStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-           <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
-              <div className="flex justify-between items-center p-6 border-b border-slate-800">
-                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                   <ScanFace className="text-blue-400" />
-                   Register Face Data
-                 </h3>
-                 <button onClick={closeRegistrationModal} className="text-slate-400 hover:text-white transition-colors">
-                    <X size={24} />
-                 </button>
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-slate-800">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <ScanFace className="text-blue-400" />
+                Register Face Data
+              </h3>
+              <button onClick={closeRegistrationModal} className="text-slate-400 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-slate-300 mb-4 text-sm">
+                Align <span className="font-semibold text-blue-400">{registeringStudent.name}</span>'s face inside the camera view and capture a clear image.
+              </p>
+
+              <div className="relative aspect-square w-full bg-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-inner mb-6">
+                {stream ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    onLoadedMetadata={() => setIsCameraReady(true)}
+                    className="w-full h-full object-cover mirror-mode"
+                    style={{ transform: "scaleX(-1)" }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center text-slate-500">
+                    <Camera size={32} className="mb-2" />
+                    <span className="text-sm font-medium">Initializing camera...</span>
+                  </div>
+                )}
+
+                <canvas ref={canvasRef} className="hidden" />
+
+                {/* Scanner UI */}
+                {stream && (
+                  <div className="absolute inset-0 border-[6px] border-blue-500/30 rounded-2xl pointer-events-none"></div>
+                )}
               </div>
 
-              <div className="p-6">
-                 <p className="text-slate-300 mb-4 text-sm">
-                   Align <span className="font-semibold text-blue-400">{registeringStudent.name}</span>'s face inside the camera view and capture a clear image.
-                 </p>
+              {uploadStatus.message && (
+                <div className={`p-3 rounded-xl mb-4 text-sm flex items-center gap-2 ${uploadStatus.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                  }`}>
+                  {uploadStatus.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                  {uploadStatus.message}
+                </div>
+              )}
 
-                 <div className="relative aspect-square w-full bg-slate-800 rounded-2xl overflow-hidden flex items-center justify-center shadow-inner mb-6">
-                   {stream ? (
-                     <video 
-                       ref={videoRef} 
-                       autoPlay 
-                       playsInline 
-                       muted 
-                       onLoadedMetadata={() => setIsCameraReady(true)}
-                       className="w-full h-full object-cover mirror-mode"
-                       style={{ transform: "scaleX(-1)" }}
-                     />
-                   ) : (
-                     <div className="flex flex-col items-center text-slate-500">
-                        <Camera size={32} className="mb-2" />
-                        <span className="text-sm font-medium">Initializing camera...</span>
-                     </div>
-                   )}
-                   
-                   <canvas ref={canvasRef} className="hidden" />
+              <button
+                onClick={handleCaptureAndRegister}
+                disabled={!stream || !isCameraReady || isUploading || uploadStatus.type === 'success'}
+                className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              >
+                {isUploading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                    Processing...
+                  </>
+                ) : uploadStatus.type === 'success' ? 'Registered Successfully' : 'Capture & Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                   {/* Scanner UI */}
-                   {stream && (
-                      <div className="absolute inset-0 border-[6px] border-blue-500/30 rounded-2xl pointer-events-none"></div>
-                   )}
-                 </div>
+      {/* Edit Student Modal */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="flex justify-between items-center p-6 border-b border-slate-800">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Edit2 className="text-blue-400" />
+                Edit Student
+              </h3>
+              <button onClick={closeEditModal} className="text-slate-400 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
 
-                 {uploadStatus.message && (
-                   <div className={`p-3 rounded-xl mb-4 text-sm flex items-center gap-2 ${
-                     uploadStatus.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
-                   }`}>
-                     {uploadStatus.type === 'success' ? <CheckCircle size={16}/> : <AlertCircle size={16}/>}
-                     {uploadStatus.message}
-                   </div>
-                 )}
+            <div className="p-6">
+              <p className="text-slate-300 mb-4 text-sm">
+                Update details for <span className="font-semibold text-blue-400">{editingStudent.name}</span>.
+              </p>
 
-                 <button
-                   onClick={handleCaptureAndRegister}
-                   disabled={!stream || !isCameraReady || isUploading || uploadStatus.type === 'success'}
-                   className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-                 >
-                   {isUploading ? (
-                     <>
-                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                        Processing...
-                     </>
-                   ) : uploadStatus.type === 'success' ? 'Registered Successfully' : 'Capture & Save'}
-                 </button>
+              <div className="space-y-4 mb-4">
+                <div>
+                  <label className="text-sm text-slate-400 block mb-1">Name</label>
+                  <input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 px-3 text-white placeholder:text-slate-500 focus:outline-none"
+                    placeholder="Full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-slate-400 block mb-1">Roll Number</label>
+                  <input
+                    value={editRollNo}
+                    onChange={(e) => setEditRollNo(e.target.value)}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl py-2.5 px-3 text-white placeholder:text-slate-500 focus:outline-none"
+                    placeholder="Roll number"
+                  />
+                </div>
               </div>
-           </div>
+
+              {saveStatus.message && (
+                <div className={`p-3 rounded-xl mb-4 text-sm flex items-center gap-2 ${saveStatus.type === 'success' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'
+                  }`}>
+                  {saveStatus.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                  {saveStatus.message}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSaveEdit}
+                  disabled={isSaving}
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+
+                <button
+                  onClick={closeEditModal}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold py-3.5 rounded-xl transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
