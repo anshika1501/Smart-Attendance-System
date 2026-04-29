@@ -4,10 +4,12 @@ import { Camera, MapPin, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 const Attendance = () => {
   const [stream, setStream] = useState(null);
+  const [isCameraReady, setIsCameraReady] = useState(false);
   const [location, setLocation] = useState(null);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isLoading, setIsLoading] = useState(false);
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
 
   // Time restriction mock logic
   const checkIsAttendanceOpen = () => {
@@ -31,6 +33,7 @@ const Attendance = () => {
         video: { facingMode: 'user' } 
       });
       setStream(mediaStream);
+      setIsCameraReady(false);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
@@ -48,6 +51,26 @@ const Attendance = () => {
       stream.getTracks().forEach(track => track.stop());
       setStream(null);
     }
+    setIsCameraReady(false);
+  };
+
+  const captureImageBase64 = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    if (video && canvas) {
+      if (!video.videoWidth || !video.videoHeight) {
+        return null;
+      }
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      // Draw video frame on canvas (considering the mirror effect in UI, we don't necessarily have to flip but keeping raw pixels is better for facial recognition)
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      return dataUrl;
+    }
+    return null;
   };
 
   const handleCaptureAndMark = () => {
@@ -57,6 +80,12 @@ const Attendance = () => {
         message: 'Attendance is closed. You can only mark attendance during designated hours.' 
       });
       return;
+    }
+
+    const imageBase64 = captureImageBase64();
+    if (!imageBase64) {
+       setStatus({ type: 'error', message: 'Camera is still initializing. Please wait a moment and try again.' });
+       return;
     }
 
     setIsLoading(true);
@@ -75,34 +104,26 @@ const Attendance = () => {
         setLocation({ lat: latitude, lng: longitude });
 
         try {
-          // Here we would capture an image from video feed and send it
-          // For now, we simulate API call since we don't have facial recognition connected
-          // In real app: canvas capture -> blob -> FormData -> axios post
-          
-          /*
-          await api.post('/attendance', {
+          // Send face capture to backend for matching
+          const response = await api.post('/mark-attendance', {
+             image_base64: imageBase64,
              latitude,
-             longitude,
-             timestamp: new Date().toISOString()
-             // + image if required
+             longitude
           });
-          */
-
-          // Simulate API delay
-          await new Promise(resolve => setTimeout(resolve, 1500));
           
           setStatus({ 
             type: 'success', 
-            message: `Attendance marked successfully at ${new Date().toLocaleTimeString()}!` 
+            message: `Attendance Marked ✅ - ${response.data.message}` 
           });
           
           // Stop camera after successful capture
           stopCamera();
 
         } catch (error) {
+          const errMsg = error.response?.data?.detail || 'Failed to mark attendance. Server error.';
           setStatus({ 
             type: 'error', 
-            message: 'Failed to mark attendance. Server error.' 
+            message: errMsg.includes('Face Not Matched') ? 'Face Not Matched ❌' : errMsg 
           });
         } finally {
           setIsLoading(false);
@@ -157,6 +178,7 @@ const Attendance = () => {
               autoPlay 
               playsInline 
               muted 
+              onLoadedMetadata={() => setIsCameraReady(true)}
               className="w-full h-full object-cover mirror-mode"
               style={{ transform: "scaleX(-1)" }} // Mirror effect for webcams
             />
@@ -169,6 +191,8 @@ const Attendance = () => {
               <p className="text-sm text-slate-500 mt-1 max-w-xs">Start camera to verify your identity and mark your attendance.</p>
             </div>
           )}
+          
+          <canvas ref={canvasRef} className="hidden" />
 
           {/* Scanner overlay effect */}
           {stream && (
@@ -178,7 +202,7 @@ const Attendance = () => {
                  <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center">
                     <div className="flex flex-col items-center gap-2">
                        <Loader2 className="animate-spin text-blue-500" size={32} />
-                       <span className="text-white font-medium bg-slate-900/80 px-3 py-1 rounded-full text-sm">Processing...</span>
+                       <span className="text-white font-medium bg-slate-900/80 px-3 py-1 rounded-full text-sm">Processing verification...</span>
                     </div>
                  </div>
                )}
@@ -208,9 +232,9 @@ const Attendance = () => {
 
           <button
             onClick={handleCaptureAndMark}
-            disabled={!stream || isLoading}
+            disabled={!stream || !isCameraReady || isLoading}
             className={`w-full font-medium py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-2 ${
-              !stream || isLoading 
+              !stream || !isCameraReady || isLoading 
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed border-slate-700' 
                 : 'bg-green-600 hover:bg-green-500 text-white shadow-[0_0_15px_rgba(22,163,74,0.3)]'
             }`}
