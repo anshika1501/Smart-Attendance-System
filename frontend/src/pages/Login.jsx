@@ -23,9 +23,16 @@ const Login = () => {
       // Temporary simulated behavior
       setTimeout(() => {
         if (email.includes('@')) {
+          const role = email === 'admin@admin.com' ? 'admin' : 'student';
           localStorage.setItem('token', 'fake-jwt-token-12345');
           localStorage.setItem('userName', email.split('@')[0]);
-          navigate('/dashboard');
+          localStorage.setItem('role', role);
+          
+          if (role === 'admin') {
+            navigate('/dashboard');
+          } else {
+            navigate('/attendance');
+          }
         } else {
           setError('Invalid login credentials.');
           setIsLoading(false);

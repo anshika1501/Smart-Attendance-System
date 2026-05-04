@@ -6,6 +6,8 @@ import models
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import json
+import datetime
+from sqlalchemy import func
 
 from face_utils import (
     get_embedding_from_base64,
@@ -206,3 +208,36 @@ def mark_attendance(req: MarkAttendanceRequest,
         "confidence": confidence,
         "threshold": match_threshold
     }
+
+# Attendance Stats API
+@app.get("/attendance-stats")
+def get_attendance_stats(days: int = 7, db: Session = Depends(get_db)):
+    start_date = datetime.datetime.utcnow() - datetime.timedelta(days=days)
+    
+    total_students = db.query(models.Student).count()
+    if total_students == 0:
+        return []
+
+    logs = db.query(
+        func.date(models.AttendanceLog.timestamp).label("date"),
+        func.count(func.distinct(models.AttendanceLog.student_id)).label("present_count")
+    ).filter(
+        models.AttendanceLog.timestamp >= start_date
+    ).group_by(
+        func.date(models.AttendanceLog.timestamp)
+    ).order_by(
+        func.date(models.AttendanceLog.timestamp)
+    ).all()
+
+    stats = []
+    for log in logs:
+        percentage = (log.present_count / total_students) * 100
+        stats.append({
+            "date": log.date,
+            "percentage": round(percentage, 1),
+            "present_count": log.present_count,
+            "total_students": total_students
+        })
+
+    return stats
+

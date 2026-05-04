@@ -8,17 +8,19 @@ const SidebarLayout = () => {
 
   // Decode or fetch user info if needed. For now mostly simulating.
   const userName = localStorage.getItem('userName') || 'User';
+  const role = localStorage.getItem('role') || 'student';
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
+    localStorage.removeItem('role');
     navigate('/login');
   };
 
   const navLinks = [
-    { name: 'Dashboard', to: '/dashboard', icon: <LayoutDashboard size={20} /> },
-    { name: 'Mark Attendance', to: '/attendance', icon: <Camera size={20} /> },
-    { name: 'Students', to: '/students', icon: <Users size={20} /> },
+    ...(role === 'admin' ? [{ name: 'Dashboard', to: '/dashboard', icon: <LayoutDashboard size={20} /> }] : []),
+    ...(role === 'student' ? [{ name: 'Mark Attendance', to: '/attendance', icon: <Camera size={20} /> }] : []),
+    ...(role === 'admin' ? [{ name: 'Students', to: '/students', icon: <Users size={20} /> }] : []),
   ];
 
   return (

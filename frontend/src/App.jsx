@@ -9,6 +9,19 @@ import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Students from './pages/Students';
 
+const RoleRedirect = () => {
+  const role = localStorage.getItem('role') || 'student';
+  return role === 'admin' ? <Navigate to="/dashboard" replace /> : <Navigate to="/attendance" replace />;
+};
+
+const RoleRoute = ({ children, allowedRoles }) => {
+  const role = localStorage.getItem('role') || 'student';
+  if (!allowedRoles.includes(role)) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+};
+
 function App() {
   return (
     <Router>
@@ -26,10 +39,10 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route index element={<Navigate to="/dashboard" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="attendance" element={<Attendance />} />
-          <Route path="students" element={<Students />} />
+          <Route index element={<RoleRedirect />} />
+          <Route path="dashboard" element={<RoleRoute allowedRoles={['admin']}><Dashboard /></RoleRoute>} />
+          <Route path="attendance" element={<RoleRoute allowedRoles={['student']}><Attendance /></RoleRoute>} />
+          <Route path="students" element={<RoleRoute allowedRoles={['admin']}><Students /></RoleRoute>} />
         </Route>
 
         {/* Fallback route */}
