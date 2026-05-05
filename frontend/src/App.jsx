@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Attendance from './pages/Attendance';
 import Students from './pages/Students';
+import StudentAttendance from './pages/StudentAttendance';
 
 const RoleRedirect = () => {
   const role = localStorage.getItem('role') || 'student';
@@ -31,8 +32,8 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Protected Routes Wrapper */}
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
             <ProtectedRoute>
               <SidebarLayout />
@@ -42,6 +43,7 @@ function App() {
           <Route index element={<RoleRedirect />} />
           <Route path="dashboard" element={<RoleRoute allowedRoles={['admin']}><Dashboard /></RoleRoute>} />
           <Route path="attendance" element={<RoleRoute allowedRoles={['student']}><Attendance /></RoleRoute>} />
+          <Route path="attendance-monitor" element={<RoleRoute allowedRoles={['admin', 'student']}><StudentAttendance /></RoleRoute>} />
           <Route path="students" element={<RoleRoute allowedRoles={['admin']}><Students /></RoleRoute>} />
         </Route>
 
