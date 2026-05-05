@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Camera, Users, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Camera, Users, LogOut, Menu, X, BarChart3 } from 'lucide-react';
 
 const SidebarLayout = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -20,6 +20,7 @@ const SidebarLayout = () => {
   const navLinks = [
     ...(role === 'admin' ? [{ name: 'Dashboard', to: '/dashboard', icon: <LayoutDashboard size={20} /> }] : []),
     ...(role === 'student' ? [{ name: 'Mark Attendance', to: '/attendance', icon: <Camera size={20} /> }] : []),
+    { name: 'Attendance Monitor', to: '/attendance-monitor', icon: <BarChart3 size={20} /> },
     ...(role === 'admin' ? [{ name: 'Students', to: '/students', icon: <Users size={20} /> }] : []),
   ];
 
